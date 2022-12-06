@@ -99,32 +99,22 @@ double* calculate_di(double* contact_matrix, const std::size_t& edge_size, const
 
     // use _mm256_add_pd to calculate A, B and E
     for (std::size_t col = range; col < (edge_size - range) + 1; col += 4) {
-        for (std::size_t row = 0; row < range - 1; row++) {
-            __m256d vA = _mm256_loadu_pd(transposed_matrix + row * edge_size + col);
-            __m256d vA_next = _mm256_loadu_pd(transposed_matrix + (row + 1) * edge_size + col);
-            _mm256_storeu_pd(transposed_matrix + (row + 1) * edge_size + col, _mm256_add_pd(vA, vA_next));
+        __m256d vA = _mm256_setzero_pd();
+        __m256d vB = _mm256_setzero_pd();
+
+        for (std::size_t row = 0; row < range; row++) {
+            __m256d vA_next = _mm256_loadu_pd(transposed_matrix + row * edge_size + col);
+            vA = _mm256_add_pd(vA, vA_next);
+
+            __m256d vB_next = _mm256_loadu_pd(transposed_matrix + (row + range) * edge_size + col);
+            vB = _mm256_add_pd(vB, vB_next);
+
+            __m256d vE = _mm256_div_pd(_mm256_add_pd(vA, vB), _mm256_set1_pd(2.0));
+            _mm256_storeu_pd(E + col, vE);
+
+            _mm256_storeu_pd(A + col, vA);
+            _mm256_storeu_pd(B + col, vB);
         }
-
-        A[col] = transposed_matrix[range * edge_size + col];
-        A[col + 1] = transposed_matrix[range * edge_size + col + 1];
-        A[col + 2] = transposed_matrix[range * edge_size + col + 2];
-        A[col + 3] = transposed_matrix[range * edge_size + col + 3];
-
-        for (std::size_t row = range; row < 2 * range - 1; row++) {
-            __m256d vB = _mm256_loadu_pd(transposed_matrix + row * edge_size + col);
-            __m256d vB_next = _mm256_loadu_pd(transposed_matrix + (row + 1) * edge_size + col);
-            _mm256_storeu_pd(transposed_matrix + (row + 1) * edge_size + col, _mm256_add_pd(vB, vB_next));
-        }
-
-        B[col] = transposed_matrix[2 * range * edge_size + col];
-        B[col + 1] = transposed_matrix[2 * range * edge_size + col + 1];
-        B[col + 2] = transposed_matrix[2 * range * edge_size + col + 2];
-        B[col + 3] = transposed_matrix[2 * range * edge_size + col + 3];
-
-        E[col] = (A[col] + B[col]) / 2;
-        E[col + 1] = (A[col + 1] + B[col + 1]) / 2;
-        E[col + 2] = (A[col + 2] + B[col + 2]) / 2;
-        E[col + 3] = (A[col + 3] + B[col + 3]) / 2;
     }
 
     for (std::size_t row = 0; row < edge_size; row += 4) {
