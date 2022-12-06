@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cmath>
 
 const std::tuple<double*, std::size_t> read_hi_c_data(const std::string& filename, const std::size_t& bin_size, const std::size_t& bin1_min, const std::size_t& bin1_max, const std::size_t& bin2_min, const std::size_t& bin2_max) {
     std::fstream file;
@@ -58,15 +59,15 @@ const std::tuple<double*, std::size_t> read_hi_c_data(const std::string& filenam
     return std::make_tuple(data, edge_size);
 }
 
-std::vector<double> calculate_di(double* contact_matrix, const std::size_t& edge_size, const std::size_t& bin_size) {
+double* calculate_di(double* contact_matrix, const std::size_t& edge_size, const std::size_t& bin_size) {
     std::size_t range = SIGNIFICANT_BINS / bin_size;
-    std::vector<double> A(edge_size, 0);
-    std::vector<double> B(edge_size, 0);
-    std::vector<double> E(edge_size, 0);
-    std::vector<double> di(edge_size, 0);
+    double* A = new double[edge_size]();
+    double* B = new double[edge_size]();
+    double* E = new double[edge_size]();
+    double* di = new double[edge_size]();
 
     for (std::size_t row = 0; row < range; row++) {
-        double a = std::accumulate(contact_matrix + row * edge_size + row - range, contact_matrix + row * edge_size + row, 0.0);
+        double a = std::accumulate(contact_matrix + row * edge_size, contact_matrix + row * edge_size + row, 0.0);
         double b = std::accumulate(contact_matrix + row * edge_size + row + 1, contact_matrix + row * edge_size + row + range + 1, 0.0);
         A[row] = a;
         B[row] = b;
@@ -75,7 +76,7 @@ std::vector<double> calculate_di(double* contact_matrix, const std::size_t& edge
 
     for (std::size_t row = (edge_size - range) + 1; row < edge_size; row++) {
         double a = std::accumulate(contact_matrix + row * edge_size + row - range, contact_matrix + row * edge_size + row, 0.0);
-        double b = std::accumulate(contact_matrix + row * edge_size + row + 1, contact_matrix + row * edge_size + row + range + 1, 0.0);
+        double b = std::accumulate(contact_matrix + row * edge_size + row + 1, contact_matrix + (row + 1) * edge_size, 0.0);
         A[row] = a;
         B[row] = b;
         E[row] = (a + b) / 2;
@@ -127,19 +128,17 @@ std::vector<double> calculate_di(double* contact_matrix, const std::size_t& edge
     }
 
     for (std::size_t row = 0; row < edge_size; row += 4) {
-        __m256d vA = _mm256_loadu_pd(A.data() + row);
-        __m256d vB = _mm256_loadu_pd(B.data() + row);
-        __m256d vE = _mm256_loadu_pd(E.data() + row);
+        __m256d vA = _mm256_loadu_pd(A + row);
+        __m256d vB = _mm256_loadu_pd(B + row);
+        __m256d vE = _mm256_loadu_pd(E + row);
 
         __m256d vAB = _mm256_sub_pd(vB, vA);
         __m256d vAE = _mm256_sub_pd(vA, vE);
         __m256d vBE = _mm256_sub_pd(vB, vE);
 
         // (B - A) / (std::abs(B - A))
-        __m256d vSign = _mm256_cmp_pd(vAB, _mm256_setzero_pd(), _CMP_GT_OQ);
-        vSign = _mm256_sub_pd(_mm256_mul_pd(vSign, _mm256_set1_pd(2)), _mm256_set1_pd(1));
-        __m256d vSignBA2 = _mm256_div_pd(vAB, vAB);
-        vSignBA2 = _mm256_mul_pd(vSignBA2, vSign);
+        __m256d vAB_abs = _mm256_andnot_pd(_mm256_set1_pd(-0.0), vAB);
+        __m256d vSignBA2 = _mm256_div_pd(vAB, vAB_abs);
 
         // (((A - E) * (A - E)) / E)
         __m256d vAE2 = _mm256_mul_pd(vAE, vAE);
@@ -153,7 +152,13 @@ std::vector<double> calculate_di(double* contact_matrix, const std::size_t& edge
         __m256d vResult = _mm256_add_pd(vAE2E, vBE2E);
         vResult = _mm256_mul_pd(vResult, vSignBA2);
 
-        _mm256_storeu_pd(di.data() + row, vResult);
+        _mm256_storeu_pd(di + row, vResult);
+    }
+
+    for (std::size_t i = 0; i < edge_size; i++) {
+        if (std::isnan(di[i])) {
+            di[i] = 0.0;
+        }
     }
 
     return di;

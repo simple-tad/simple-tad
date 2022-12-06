@@ -11,10 +11,10 @@ int main() {
     auto di = calculate_di(data, edge_size, 5000);
     auto end_calculate_di = std::chrono::high_resolution_clock::now();
 
-    // std::cout << "di: " << std::endl;
-    // for (auto d : di) {
-    //     std::cout << d << std::endl;
-    // }
+    std::cout << "di: " << std::endl;
+    for (std::size_t i = 0; i < edge_size; i++) {
+        std::cout << di[i] << std::endl;
+    }
 
     std::cout << "Read data: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_read_data - start).count() << "ns" << std::endl;
     std::cout << "Calculate di: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_calculate_di - end_read_data).count() << "ns" << std::endl;
