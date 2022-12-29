@@ -1,5 +1,0 @@
-if(EXISTS "/mnt/c/Users/wst24365888/SynologyDrive/NYCU/master_1111/parallel_program_optimization_with_practical_applications_in_bioinformatics/final_project/simple-tad/build/simple-tad-tests[1]_tests.cmake")
-  include("/mnt/c/Users/wst24365888/SynologyDrive/NYCU/master_1111/parallel_program_optimization_with_practical_applications_in_bioinformatics/final_project/simple-tad/build/simple-tad-tests[1]_tests.cmake")
-else()
-  add_test(simple-tad-tests_NOT_BUILT simple-tad-tests_NOT_BUILT)
-endif()

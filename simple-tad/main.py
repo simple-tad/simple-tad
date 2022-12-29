@@ -2,6 +2,7 @@ from typing import Tuple
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import os
 import simple_tad
 
 
@@ -11,14 +12,15 @@ def read_hi_c_data(filename: str, bin_size: int, bin1_min: int, bin1_max: int, b
         file.readline()
 
         # get edge size
-        edge_size = (max(bin1_max, bin2_max) - min(bin1_min, bin2_min)) // bin_size + 1
+        edge_size = (max(bin1_max, bin2_max) -
+                     min(bin1_min, bin2_min)) // bin_size + 1
 
         # create data array
         data = np.zeros((edge_size, edge_size), dtype=np.float32)
 
         # read data
         for line in file:
-            chr, bin1, bin2, rescaled_intensity, diag_offset, dist = line.split(
+            chr, bin1, bin2, rescaled_intensity = line.split(
                 ',')
             bin1 = int(bin1)
             bin2 = int(bin2)
@@ -30,47 +32,80 @@ def read_hi_c_data(filename: str, bin_size: int, bin1_min: int, bin1_max: int, b
                 data[col, row] = rescaled_intensity
             else:
                 print(
-                    f'chr: {chr} bin1: {bin1} bin2: {bin2} rescaled_intensity: {rescaled_intensity} diag_offset: {diag_offset} dist: {dist}')
+                    f'chr: {chr} bin1: {bin1} bin2: {bin2} rescaled_intensity: {rescaled_intensity}')
 
     return data, edge_size
 
 
 def main():
     # read data
-    data, edge_size = read_hi_c_data(
-        "./data/GM12878_MboI_Diag_chr6.csv", 5000, 305000, 170085000, 825000, 170605000)
-    
-    coords = simple_tad.calculate_tad_coords(data.reshape(edge_size**2), edge_size, 5000)
+    global_data, edge_size = read_hi_c_data(
+        "./data/GM12878_MboI_chr6.csv", 5000, 140000, 170590000, 160000, 170610000)
 
-    plt.figure(dpi=2500)
+    RANGE = 40
+    DISCRETE_THRESHOLD = 4
 
-    # plot heatmap and save to file
-    plt.imshow(
-        data,
-        cmap=mpl.colors.LinearSegmentedColormap.from_list(
-            "",
-            [(1, 1, 1), (0.5, 0.03125, 0.0)]
-        ),
-        interpolation=None
-    )
+    # if output folder does not exist, create it
+    if not os.path.exists(f'./output-{RANGE}-{DISCRETE_THRESHOLD}'):
+        os.makedirs(f'./output-{RANGE}-{DISCRETE_THRESHOLD}')
 
-    # add TADs
-    for coord in coords:
-        plt.gca().add_patch(
-            mpl.patches.Rectangle(
-                (coord[0], coord[0]),
-                coord[1] - coord[0],
-                coord[1] - coord[0],
-                edgecolor='violet',
-                facecolor='none',
-                linewidth=0.01
-            )
+    LOCAL_SIZE = 800
+
+    for i in range(0, edge_size, LOCAL_SIZE):
+        print(f"---{i}---")
+
+        local_data = global_data[i:i+LOCAL_SIZE, i:i+LOCAL_SIZE]
+
+        assert local_data.shape[0] == local_data.shape[1]
+
+        coords = simple_tad.calculate_tad_coords(
+            local_data.reshape(local_data.shape[0]**2),
+            local_data.shape[0],
+            bin_size=5000,
+            range=RANGE,
+            discrete_threshold=DISCRETE_THRESHOLD,
+            tolerance=1e-7,
+            max_iters=2500,
         )
 
-    # add colorbar
-    plt.colorbar()
+        print("coords done")
 
-    plt.savefig('heatmap.png')
+        # ensure all bins can be seen
+        plt.figure(dpi=1000)
+
+        cmap = mpl.colors.LinearSegmentedColormap.from_list(
+            "",
+            [(1, 1, 1), (1, 0, 0)]
+        )
+        cmap.set_over((0, 0, 0))
+
+        plt.imshow(
+            local_data,
+            cmap=cmap,
+            interpolation='none',
+            vmin=0,
+            vmax=100,
+        )
+
+        # add colorbar
+        plt.colorbar(extend='max')
+
+        # add TADs
+        for coord in coords:
+            plt.gca().add_patch(
+                mpl.patches.Rectangle(
+                    (coord[0], coord[0]),
+                    coord[1] - coord[0],
+                    coord[1] - coord[0],
+                    edgecolor=(0, 0, 0, 0.2),
+                    facecolor='none',
+                    linewidth=0.5
+                )
+            )
+
+        plt.savefig(f'./output-{RANGE}-{DISCRETE_THRESHOLD}/heatmap-{i}.png')
+
+        plt.close()
 
 
 if __name__ == '__main__':

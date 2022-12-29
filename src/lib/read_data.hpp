@@ -1,4 +1,3 @@
-#include "constants.h"
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -29,8 +28,6 @@ const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename
         std::size_t bin1;
         std::size_t bin2;
         float rescaled_intensity;
-        std::size_t diag_offset;
-        std::size_t dist;
 
         std::getline(ss, chr, ',');
         ss >> bin1;
@@ -38,10 +35,6 @@ const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename
         ss >> bin2;
         ss.ignore();
         ss >> rescaled_intensity;
-        ss.ignore();
-        ss >> diag_offset;
-        ss.ignore();
-        ss >> dist;
 
         if (bin1 >= bin1_min && bin1 <= bin1_max && bin2 >= bin2_min && bin2 <= bin2_max) {
             std::size_t row = (bin1 - std::min(bin1_min, bin2_min)) / bin_size;
@@ -49,7 +42,7 @@ const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename
             data[row * edge_size + col] = rescaled_intensity;
             data[col * edge_size + row] = rescaled_intensity;
         } else {
-            std::cout << "chr: " << chr << " bin1: " << bin1 << " bin2: " << bin2 << " rescaled_intensity: " << rescaled_intensity << " diag_offset: " << diag_offset << " dist: " << dist << std::endl;
+            std::cout << "chr: " << chr << " bin1: " << bin1 << " bin2: " << bin2 << " rescaled_intensity: " << rescaled_intensity << std::endl;
         }
     }
     return std::make_tuple(data, edge_size);

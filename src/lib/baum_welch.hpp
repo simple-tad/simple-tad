@@ -150,30 +150,13 @@ void baum_welch(
         log_emission[i] = std::log1p(emission[i]);
     }
 
-    // init the likelihood of the observed data
-    float log_likelihood = -INFINITY;
-
     std::size_t iter = 0;
     while (true) {
+        float transition_diff = 0;
+        float emission_diff = 0;
+        
         auto alpha = forward(observations, num_observations, log_transition, log_emission, log_initial, num_states, num_emissions);
         auto beta = backward(observations, num_observations, log_transition, log_emission, num_states, num_emissions);
-
-        float new_log_likelihood = -INFINITY;
-        for (std::size_t i = 0; i < num_states; ++i) {
-            new_log_likelihood = log_add(new_log_likelihood, alpha[(num_observations - 1) * num_states + i]);
-        }
-
-        // check if the log likelihood is converged
-        if (std::abs(std::exp(new_log_likelihood) - std::exp(log_likelihood)) < tolerance) {
-            std::cout << "Converged at iteration " << iter << std::endl;
-
-            delete[] alpha;
-            delete[] beta;
-            break;
-        }
-
-        // update the log likelihood
-        log_likelihood = new_log_likelihood;
 
         // check if the max iteration is reached
         if (iter >= max_iters) {
@@ -209,6 +192,8 @@ void baum_welch(
                     numerator = log_add(numerator, xi[i * num_states * num_observations + j * num_observations + t]);
                 }
 
+                transition_diff += std::abs(std::exp(log_transition[i * num_states + j]) - std::exp(numerator - denominator));
+
                 log_transition[i * num_states + j] = numerator - denominator;
             }
         }
@@ -228,12 +213,19 @@ void baum_welch(
                     }
                 }
 
+                emission_diff += std::abs(std::exp(log_emission[i * num_emissions + k]) - std::exp(numerator - denominator));
+
                 log_emission[i * num_emissions + k] = numerator - denominator;
             }
         }
 
         delete[] gamma;
         delete[] xi;
+
+        if (transition_diff < tolerance && emission_diff < tolerance) {
+            std::cout << "Converged at iteration " << iter << std::endl;
+            break;
+        }
 
         ++iter;
     }

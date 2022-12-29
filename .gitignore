@@ -48,5 +48,6 @@ _deps
 # Others
 .vscode/
 data/
+build/
 *.pyd
 *.png

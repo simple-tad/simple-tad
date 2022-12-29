@@ -43,6 +43,8 @@ const std::vector<std::pair<std::size_t, std::size_t>> calculate_coord(const Bia
     std::size_t curr_end = 0;
     std::size_t next_end = 1;
 
+    std::size_t prev_end = 0;
+
     while (possible_start_coords[curr_start] > possible_end_coords[curr_end] && curr_end < possible_end_coords.size() - 1 && next_end < possible_end_coords.size() - 1) {
         ++curr_end;
         ++next_end;
@@ -63,11 +65,12 @@ const std::vector<std::pair<std::size_t, std::size_t>> calculate_coord(const Bia
         curr_start = next_start;
         ++next_start;
 
+        prev_end = curr_end;
         curr_end = next_end;
         ++next_end;
     }
 
-    if (possible_start_coords[curr_start] < possible_end_coords[curr_end]) {
+    if (possible_start_coords[curr_start] < possible_end_coords[curr_end] && possible_start_coords[curr_start] > possible_end_coords[prev_end]) {
         coords.emplace_back(possible_start_coords[curr_start], possible_end_coords[curr_end] + 1);
     }
 

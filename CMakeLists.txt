@@ -16,10 +16,6 @@ option(BUILD_BENCHMARKS "Build benchmarks." OFF)
 set(CMAKE_CXX_FLAGS "-Wall -std=c++17 -O3 -mavx2")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
-if (BUILD_PYBIND11 AND BUILD_MAIN)
-    message(FATAL_ERROR "BUILD_PYBIND11 and BUILD_MAIN are mutually exclusive.")
-endif()
-
 if (BUILD_MAIN)
     add_executable(simple-tad ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
     target_include_directories(simple-tad PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src/lib ${CMAKE_CURRENT_SOURCE_DIR}/libsimdpp)

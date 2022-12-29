@@ -3,8 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-float* calculate_di_SCALAR(const float* contact_matrix, const std::size_t& edge_size, const std::size_t& bin_size) {
-    std::size_t range = SIGNIFICANT_BINS / bin_size;
+float* calculate_di_SCALAR(const float* contact_matrix, const std::size_t& edge_size, const std::size_t& range) {
     float* di = new float[edge_size]();
 
     for (std::size_t locus_index = 0; locus_index < edge_size; ++locus_index) {
@@ -48,7 +47,7 @@ static void BM_calculate_di_SCALAR(benchmark::State& state) {
     std::generate(data.begin(), data.end(), []() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     for (auto _ : state) {
-        calculate_di_SCALAR(data.data(), edge_size, 5000);
+        calculate_di_SCALAR(data.data(), edge_size, 2);
     }
 
     state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(float) / 8, benchmark::Counter::kIsRate);
@@ -62,7 +61,7 @@ static void BM_calculate_di_AVX2(benchmark::State& state) {
     std::generate(data.begin(), data.end(), []() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
 
     for (auto _ : state) {
-        calculate_di_AVX2(data.data(), edge_size, 5000);
+        calculate_di_AVX2(data.data(), edge_size, 40);
     }
 
     state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(float) / 8, benchmark::Counter::kIsRate);

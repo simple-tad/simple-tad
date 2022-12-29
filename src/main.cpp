@@ -14,20 +14,20 @@
 int main() {
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto& [data, edge_size] = read_hi_c_data("./data/GM12878_MboI_Diag_chr6.csv", 5000, 305000, 170085000, 825000, 170605000);
+    auto& [data, edge_size] = read_hi_c_data("./data/GM12878_MboI_chr6.csv", 5000, 140000, 170590000, 160000, 170610000);
     auto end_read_data = std::chrono::high_resolution_clock::now();
 
-    auto di = calculate_di_AVX2(data, edge_size, 5000);
+    auto di = calculate_di_AVX2(data, edge_size, 40);
     auto end_calculate_di = std::chrono::high_resolution_clock::now();
 
     int* di_discrete = new int[edge_size];
     for (std::size_t i = 0; i < edge_size; i++) {
         if (di[i] > DISCREATE_THRESHOLD) {
-            di_discrete[i] = 1;
-        } else if (di[i] < -DISCREATE_THRESHOLD) {
-            di_discrete[i] = 2;
-        } else {
             di_discrete[i] = 0;
+        } else if (di[i] < -DISCREATE_THRESHOLD) {
+            di_discrete[i] = 1;
+        } else {
+            di_discrete[i] = 2;
         }
     }
 
@@ -89,12 +89,12 @@ int main() {
 
     auto end_coord = std::chrono::high_resolution_clock::now();
 
-    for (auto& coord : coords) {
-        for (std::size_t i = coord.first; i < coord.second; ++i) {
-            std::cout << states[i] << " ";
-        }
-        std::cout << "\n-" << std::endl;
-    }
+    // for (auto& coord : coords) {
+    //     for (std::size_t i = coord.first; i < coord.second; ++i) {
+    //         std::cout << states[i] << " ";
+    //     }
+    //     std::cout << "\n-" << std::endl;
+    // }
 
     std::cout << "---" << std::endl;
 

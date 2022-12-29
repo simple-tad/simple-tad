@@ -1,4 +1,3 @@
-#include "constants.h"
 #include <algorithm>
 #include <cmath>
 #include <immintrin.h>
@@ -34,8 +33,7 @@ float accumulate_AVX2(const float* data, std::size_t size) {
     return sum;
 }
 
-float* calculate_di_AVX2(const float* contact_matrix, const std::size_t& edge_size, const std::size_t& bin_size) {
-    std::size_t range = SIGNIFICANT_BINS / bin_size;
+float* calculate_di_AVX2(const float* contact_matrix, const std::size_t& edge_size, const std::size_t& range) {
     float* di = new float[edge_size]();
 
     for (std::size_t locus_index = 0; locus_index < edge_size; ++locus_index) {
