@@ -181,20 +181,20 @@ void baum_welch(
             break;
         }
 
-        std::cerr << "transition: " << std::endl;
-        for (std::size_t i = 0; i < num_states; ++i) {
-            for (std::size_t j = 0; j < num_states; ++j) {
-                std::cerr << (std::exp(log_transition[i * num_states + j])) << ' ';
-            }
-            std::cerr << std::endl;
-        }
-        std::cerr << "emissions: " << std::endl;
-        for (std::size_t i = 0; i < num_states; ++i) {
-            for (std::size_t j = 0; j < num_emissions; ++j) {
-                std::cerr << (emission[i * num_emissions + j]) << ' ';
-            }
-            std::cerr << std::endl;
-        }
+        // std::cerr << "transition: " << std::endl;
+        // for (std::size_t i = 0; i < num_states; ++i) {
+        //     for (std::size_t j = 0; j < num_states; ++j) {
+        //         std::cerr << (std::exp(log_transition[i * num_states + j])) << ' ';
+        //     }
+        //     std::cerr << std::endl;
+        // }
+        // std::cerr << "emissions: " << std::endl;
+        // for (std::size_t i = 0; i < num_states; ++i) {
+        //     for (std::size_t j = 0; j < num_emissions; ++j) {
+        //         std::cerr << (emission[i * num_emissions + j]) << ' ';
+        //     }
+        //     std::cerr << std::endl;
+        // }
         
         // compute gamma and xi
         auto gamma = compute_gamma(alpha, beta, num_observations, num_states);
@@ -265,9 +265,9 @@ void baum_welch(
         delete[] gamma;
         delete[] xi;
 
-        std::cerr << "transition_diff: " << transition_diff << std::endl;
-        std::cerr << "emission_diff: " << emission_diff << std::endl;
-        std::cerr << std::endl;
+        // std::cerr << "transition_diff: " << transition_diff << std::endl;
+        // std::cerr << "emission_diff: " << emission_diff << std::endl;
+        // std::cerr << std::endl;
 
         bool flag = false;
         if (transition_diff < tolerance || emission_diff < tolerance) {
