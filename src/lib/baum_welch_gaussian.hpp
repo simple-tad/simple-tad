@@ -14,8 +14,18 @@ float inline log_add(float x, float y) {
 }
 
 inline float calc_log_pB(const float& obs, const float& mu, const float& sigma) {
+    // float lobs = obs - 0.001;
+
+    // float cdf_obs = 0.5 * (1 + std::erf((obs - mu) / (sigma * std::sqrt(2))));
+    // float cdf_lobs = 0.5 * (1 + std::erf((lobs - mu) / (sigma * std::sqrt(2))));
+    // float ret = (std::erf((obs - mu)) - std::erf((lobs - mu))) / (2*(sigma * std::sqrt(2)));
+    // if (mu == 0) {
+    //     std::cerr << cdf_obs - cdf_lobs << ' ' << ret << std::endl;
+    // }
+    // return std::log1p(cdf_obs - cdf_lobs);
+
     float log_factor = -std::log1p(sigma * std::sqrt(2 * M_PI));
-    return log_factor - ((obs-mu)*(obs-mu)) / (2*sigma*sigma);
+    return log_factor - (obs-mu)*(obs-mu) / (2*sigma*sigma);
 }
 
 float* forward(
@@ -136,8 +146,8 @@ void baum_welch(
     float* emission,
     const std::size_t num_states,
     const std::size_t num_emissions,
-    const float tolerance = 1e-5,
-    const std::size_t max_iters = 100
+    const float tolerance = 1e-4,
+    const std::size_t max_iters = 1000
 ) {
     // transform initial to log space
     float* log_initial = new float[num_states];
@@ -152,10 +162,9 @@ void baum_welch(
     }
 
     std::size_t iter = 0;
-    float prev_loglik = INFINITY;
     while (true) {
-        float transition_diff = INFINITY;
-        float emission_diff = INFINITY;
+        float transition_diff = 0;
+        float emission_diff = 0;
 
         auto alpha = forward(observations, num_observations, log_transition, emission, log_initial, num_states, num_emissions);
         auto beta = backward(observations, num_observations, log_transition, emission, num_states, num_emissions);
@@ -164,17 +173,18 @@ void baum_welch(
         if (iter >= max_iters) {
             std::cout << "Max iteration reached." << std::endl;
 
-            delete[] alpha;
-            delete[] beta;
+            // delete[] alpha;
+            // delete[] beta;
             break;
         }
 
-        float loglik = -INFINITY;
+        std::cerr << "transition: " << std::endl;
         for (std::size_t i = 0; i < num_states; ++i) {
-            loglik = log_add(loglik, alpha[i * num_observations + num_observations - 1]);
+            for (std::size_t j = 0; j < num_states; ++j) {
+                std::cerr << (std::exp(log_transition[i * num_states + j])) << ' ';
+            }
+            std::cerr << std::endl;
         }
-        std::cerr << loglik << std::endl;
-
         std::cerr << "emissions: " << std::endl;
         for (std::size_t i = 0; i < num_states; ++i) {
             for (std::size_t j = 0; j < num_emissions; ++j) {
@@ -212,24 +222,36 @@ void baum_welch(
                 for (std::size_t t = 0; t < num_observations - 1; ++t) {
                     sum = log_add(sum, xi[i * num_states * num_observations + j * num_observations + t]);
                 }
+
+                transition_diff += std::abs(std::exp(log_transition[i * num_states + j]) - std::exp(sum - sum_gamma[i]));
                 log_transition[i * num_states + j] = sum - sum_gamma[i];
             }
         }
 
         // update emission matrix
-        for (std::size_t i = 0; i < num_states; ++i)
+        // for (std::size_t i = 0; i < num_states; ++i)
+        //     sum_gamma[i] = std::exp(sum_gamma[i]);
+
+        for (std::size_t i = 0; i < num_states; ++i) {
+            for (std::size_t t = 0; t < num_observations; ++t) {
+                gamma[i * num_observations + t] = std::exp(gamma[i * num_observations + t]);
+            }
             sum_gamma[i] = std::exp(sum_gamma[i]);
+        }
             
         for (std::size_t i = 0; i < num_states; ++i) {
             // sum_gamma[i] = std::exp(sum_gamma[i]);
             if (sum_gamma[i] == 0) continue;
+
+            float prev_mean = emission[i * num_emissions];
+            float prev_variance = emission[i * num_emissions + 1];
 
             emission[i * num_emissions] = 0;
             emission[i * num_emissions + 1] = 0;
 
             // O - mu can be negative so can't calculate sum as log without safe sum
             for (std::size_t t = 0; t < num_observations; ++t) {
-                gamma[i * num_observations + t] = std::exp(gamma[i * num_observations + t]);
+                // gamma[i * num_observations + t] = std::exp(gamma[i * num_observations + t]);
                 emission[i * num_emissions] += gamma[i * num_observations + t] * observations[t]; // E[Observation]
             }
             emission[i * num_emissions] /= sum_gamma[i]; // E[Observation] = mu
@@ -238,17 +260,33 @@ void baum_welch(
                 emission[i * num_emissions + 1] += gamma[i * num_observations + t] * (observations[t] - emission[i * num_emissions]) * (observations[t] - emission[i * num_emissions]); // E[ (Obs-mu)^2 ]
             
             emission[i * num_emissions + 1] = std::sqrt(emission[i * num_emissions + 1] / sum_gamma[i]); // sigma = sqrt( E[ (Obs-mu)^2 ] )
+
+            emission_diff += std::abs(emission[i * num_emissions] - prev_mean) + std::abs(emission[i * num_emissions + 1] - prev_variance);
         }
 
         delete[] sum_gamma;
         delete[] gamma;
         delete[] xi;
 
-        if (std::fabs(loglik - prev_loglik) < tolerance) {
+        std::cerr << "transition_diff: " << transition_diff << std::endl;
+        std::cerr << "emission_diff: " << emission_diff << std::endl;
+        std::cerr << std::endl;
+
+        bool flag = false;
+        if (transition_diff < tolerance && emission_diff < tolerance) {
+            flag = true;
+        }
+
+        for (std::size_t i = 0; i < num_states; ++i) {
+            if (emission[i * num_emissions + 1] < 1e-3) {
+                flag = true;
+            }
+        }
+
+        if (flag) {
             std::cout << "Converged at iteration " << iter << std::endl;
             break;
         }
-        prev_loglik = loglik;
 
         ++iter;
     }
