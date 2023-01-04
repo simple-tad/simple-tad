@@ -42,8 +42,8 @@ def main():
     global_data, edge_size = read_hi_c_data(
         "./data/GM12878_MboI_chr6.csv", 5000, 140000, 170590000, 160000, 170610000)
 
-    RANGE = 40
-    DISCRETE_THRESHOLD = 4
+    RANGE = 200
+    DISCRETE_THRESHOLD = 8
 
     # if output folder does not exist, create it
     if not os.path.exists(f'./output-{RANGE}-{DISCRETE_THRESHOLD}'):
@@ -64,7 +64,7 @@ def main():
             bin_size=5000,
             range=RANGE,
             discrete_threshold=DISCRETE_THRESHOLD,
-            tolerance=1e-7,
+            tolerance=5e-6,
             max_iters=2500,
         )
 
@@ -82,7 +82,7 @@ def main():
         plt.imshow(
             local_data,
             cmap=cmap,
-            interpolation='none',
+            interpolation='nearest',
             vmin=0,
             vmax=100,
         )
@@ -97,9 +97,9 @@ def main():
                     (coord[0], coord[0]),
                     coord[1] - coord[0],
                     coord[1] - coord[0],
-                    edgecolor=(0, 0, 0, 0.2),
+                    edgecolor=(0, 0, 1, 0.375),
                     facecolor='none',
-                    linewidth=0.5
+                    linewidth=0.375
                 )
             )
 
