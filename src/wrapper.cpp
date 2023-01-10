@@ -17,9 +17,9 @@ PYBIND11_MODULE(simple_tad, m) {
     m.doc() = "A C++ implementation of calculating TADs.";
 
     m.def(
-        "calculate_tad_coords", [](py::array_t<float> data_array, std::size_t edge_size, std::size_t bin_size, std::size_t range, float discrete_threshold, float tolerance, std::size_t max_iters) {
+        "calculate_tad_coords", [](py::array_t<double> data_array, std::size_t edge_size, std::size_t bin_size, std::size_t range, double discrete_threshold, double tolerance, std::size_t max_iters) {
             py::buffer_info data_buf = data_array.request();
-            float* data = static_cast<float*>(data_buf.ptr);
+            double* data = static_cast<double*>(data_buf.ptr);
 
             auto di = calculate_di_AVX2(data, edge_size, range);
             int* di_discrete = new int[edge_size];
@@ -45,13 +45,13 @@ PYBIND11_MODULE(simple_tad, m) {
             std::cout << "downstream_count: " << downstream_count << std::endl;
             std::cout << "nobias_count: " << nobias_count << std::endl;
 
-            float* initial = new float[3] { 0.3, 0.3, 0.4 };
-            float* transition = new float[3 * 3] {
+            double* initial = new double[3] { 0.3, 0.3, 0.4 };
+            double* transition = new double[3 * 3] {
                 0.5, 0.3, 0.2,
                 0.2, 0.5, 0.3,
                 0.3, 0.2, 0.5
             };
-            float* emission = new float[3 * 3] {
+            double* emission = new double[3 * 3] {
                 0.7, 0.1, 0.2,
                 0.1, 0.7, 0.2,
                 0.1, 0.1, 0.8
