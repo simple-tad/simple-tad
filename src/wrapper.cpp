@@ -1,4 +1,4 @@
-#include "lib/baum_welch.hpp"
+#include "lib/baum_welch_simd.hpp"
 #include "lib/coord.hpp"
 #include "lib/di.hpp"
 #include "lib/viterbi.hpp"
