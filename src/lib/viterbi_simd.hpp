@@ -5,144 +5,98 @@
 #include <simdpp/simd.h>
 
 namespace vectorized {
-const int N = 4;
 
-int indexof(double value, double32<N> arr) {
-    int tmp_arr[N] = { 0, 1, 2, 0 };
-    int32<N> tmp = load(tmp_arr);
-
-    int32<N> int_arr;
-    int_arr = cmp_neq(arr, value);
-    int_arr = add(int_arr, 1);
-    int_arr = mul_lo(int_arr, tmp);
-    int ret = reduce_add(int_arr);
-    return ret;
-}
-
-void init_path(double32<N>* V, double32<N> start_p, uint8<N>* path, double32<N> emission_p) {
-    V[0] = add(start_p, emission_p);
-    double path_arr[3] = { 0, 1, 2 };
-    path[0] = load(path_arr);
-}
-
-void get_path_until_t(double32<N> transition_p[N], double emission_p[N],
-    double32<N>* V, uint8<N>* path, int t) {
-    double cur_prob[N];
-    int prev_state[N];
-
-    // 對當前要計算的 state i ，使用simd計算三個state來到此state的機率，並取其最大值
-    for (int i = 0; i < N; i++) {
-        // 取得當前state最佳的機率
-        double32<N> current_prob = V[t - 1];
-        current_prob = add(current_prob, transition_p[i]); // strange
-        current_prob = add(current_prob, emission_p[i]);
-        cur_prob[i] = reduce_max(current_prob);
-
-        // 取得最佳機率發生時的前一個state
-        prev_state[i] = indexof(cur_prob[i], current_prob);
-    }
-
-    V[t] = load(cur_prob);
-    path[t] = load(prev_state);
-}
-
-void printdouble(double32<N> arr) {
-    double ori_arr[N];
-    store(ori_arr, arr);
-    cout << "[";
-    for (int i = 0; i < N; i++) {
-        cout << ori_arr[i] << ", ";
-    }
-    cout << "]" << endl;
-}
-void printint(int32<N> arr) {
-    int ori_arr[N];
-    store(ori_arr, arr);
-    cout << "[";
-    for (int i = 0; i < N; i++) {
-        cout << ori_arr[i] << ", ";
-    }
-    cout << "]" << endl;
+double emission_func(const double* const& emission, const int& di, const int& state, const std::size_t& num_hiddenstate) {
+    return emission[state * num_hiddenstate + di];
 }
 
 /*
-observations: float[num_observation].  The di values.
-initial: float[3].  The probabilities for init state.
-transition: float[3*3].  The probabilities for transition.  transition[i*3+j] presents "from state i to state j".
-emission: float[3*2] now.  The (average, variance) pairs for gaussion emission function.
+observations: double[num_observation].  The di values.
+initial: double[3].  The probabilities for init state.
+transition: double[3*3].  The probabilities for transition.  transition[i*3+j] presents "from state i to state j".
+emission: double[3*2] now.  The (average, variance) pairs for gaussion emission function.
 */
-int* viterbi(double* observation, size_t sizeof_observation,
-    double* start_p, double* transition_p, double (*emission_func)(double, int)) {
-    // 前處理，將 start_p 與 transition_p 取 log
-    double* new_start_p = (double*)malloc(N * sizeof(double));
-    for (int i = 0; i < N - 1; i++) {
-        new_start_p[i] = log10(start_p[i]);
-    }
-    initial_log10[3] = -1000;
+int* viterbi(const int* const& observations, const std::size_t& num_observation, const double* const& initial, const double* const& transition, const double* const& emission, const std::size_t& num_emission=3, const std::size_t& num_hiddenstate=3) {
+    int* hidden_states = new int[num_observation]();
+    double* viterbi = new double[num_hiddenstate* num_observation]();
 
-    double* new_transition_p = (double*)malloc(N * N * sizeof(double));
-    for (int i = N * N - 1; i >= N * (N - 1); i--) {
-        new_transition_p[i] = log10(1e-9);
-    }
-
-    simdpp::float32<4>* simd_transition_log10 = new simdpp::float32<4>[4]();
-    for(std::size_t i = 0; i < 4; ++i) {
-        simd_transition_log10[i] = simdpp::load(transition_log10 + i * 4);
-    }
+    int* prev_state = new int[num_hiddenstate* num_observation]();
     
-    float* emission_log10 = new float[3*num_observation]();
-    for(std::size_t t = 0; t < num_observation; ++t) {
-        for(std::size_t i = 0; i < 3; ++i) {
-            emission_log10[t*3 + i] = std::log10(emission_func(emission, observations[t], i));
+    double* initial_log = new double[4]();
+    for(std::size_t i = 0; i < num_hiddenstate; ++i) {
+        initial_log[i] = std::log(initial[i]);
+    }
+    initial_log[num_hiddenstate] = -1000;
+
+    double* transition_log = new double[(num_hiddenstate+1)*(num_hiddenstate+1)]();
+    for(std::size_t i = 0; i < (num_hiddenstate+1)*(num_hiddenstate+1); ++i) {
+        if ((i + 1) % (num_hiddenstate+1) == 0 || i >= (num_hiddenstate+1) * num_hiddenstate)
+            transition_log[i] = -1000;
+        else
+        {
+            int origin_i = i - i / (num_hiddenstate+1);
+            origin_i = origin_i%num_hiddenstate*num_hiddenstate+origin_i/num_hiddenstate;
+            transition_log[i] = log(transition[origin_i]);
         }
     }
 
-    // 將機率轉換成simdpp vector type
-    double32<N> simd_start_p = load(new_start_p);
-    double32<N>* simd_transition_p = (double32<N>*)calloc(N, sizeof(double32<N>));
-    for (int i = 0; i < N; i++) {
-        simd_transition_p[i] = load(new_transition_p + i * N);
+    simdpp::float64<4>* simd_transition_log = new simdpp::float64<4>[4]();
+    for(std::size_t i = 0; i < 4; ++i) {
+        simd_transition_log[i] = simdpp::load(transition_log + i * 4);
+    }
+    
+    double* emission_log = new double[num_hiddenstate*num_observation]();
+    for(std::size_t t = 0; t < num_observation; ++t) {
+        for(std::size_t i = 0; i < num_hiddenstate; ++i) {
+            emission_log[t*num_hiddenstate + i] = std::log(emission_func(emission, observations[t], i, num_hiddenstate));
+        }
     }
 
-    // 宣告V變數，V變數用來記錄當前的最佳機率與上一次迭代的最佳機率
-    double32<N>* V = (double32<N>*)calloc(sizeof_observation, sizeof(double32<N>));
+    simdpp::float64<4>* simd_emission_log = new simdpp::float64<4>[num_observation]();
+    for(std::size_t t = 0; t < num_observation; ++t) {
+        simd_emission_log[t] = simdpp::load(emission_log + t*num_hiddenstate);
+    }
+
+    // initialize viterbi
+    simdpp::float64<4> temp = simdpp::load(initial_log);
+    temp = simdpp::add(temp, simd_emission_log[0]);
+    simdpp::store(viterbi + 0, temp);
 
     // run viterbi
     for (std::size_t t = 1; t < num_observation; ++t) {
-        for (std::size_t i = 0; i < 3; ++i) {   // current state
-            simdpp::float32<4> temp = simdpp::load(viterbi + (t-1)*3);
-            temp = simdpp::add(temp, simd_transition_log10[i]);
+        for (std::size_t i = 0; i < num_hiddenstate; ++i) {   // current state
+            simdpp::float64<4> temp = simdpp::load(viterbi + (t-1)*num_hiddenstate);
+            temp = simdpp::add(temp, simd_transition_log[i]);
 
-    // Initialize
-    // t == 0 的情況，V是每個state的初始機率與他們對應的的噴出機率；而path中存放的是以各個state為終點的，長度僅為1的路徑。
-    double emission_p[N];
-    double32<N> simd_emission_p;
-    for (int i = 0; i < N - 1; i++) {
-        emission_p[i] = log10(emission_func(observation[0], i));
+            double max = simdpp::reduce_max(temp);
+            viterbi[t * num_hiddenstate + i] = max + std::log(emission_func(emission, observations[t], i, num_hiddenstate));
+
+            double* result_arr = new double[4]();
+            simdpp::store(result_arr, temp);
+            for(std::size_t j=0; j<num_hiddenstate; j++)
+            {
+                if(result_arr[j] == max)
+                {
+                    prev_state[t * num_hiddenstate + i] = j;
+                    break;
+                }
+            }
+            delete[] result_arr;
+        }
     }
 
     // find the most probable state
-    float max = -INFINITY;
-    for (std::size_t i = 0; i < 3; ++i) {
-        if (viterbi[(num_observation-1) * 3 + i] > max) {
-            max = viterbi[(num_observation-1) * 3 + i];
+    double max = -INFINITY;
+    for (std::size_t i = 0; i < num_hiddenstate; ++i) {
+        if (viterbi[(num_observation-1) * num_hiddenstate + i] > max) {
+            max = viterbi[(num_observation-1) * num_hiddenstate + i];
             hidden_states[num_observation - 1] = i;
         }
     }
 
-    // V[(sizeof_observation-1)%2]中存的是三個path的最大發生機率
-    // 選擇最大的機率對應的path並回傳
-    double max_end_prob = reduce_max(V[sizeof_observation - 1]);
-    int end_state = indexof(max_end_prob, V[sizeof_observation - 1]);
-
-    int* ret = (int*)malloc(sizeof_observation * sizeof(int));
-    int cur_state_arr[3];
-    ret[sizeof_observation - 1] = end_state;
-    int cur_state = end_state;
-    for (int i = sizeof_observation - 2; i >= 0; i--) {
-        store(cur_state_arr, path[i + 1]);
-        ret[i] = cur_state_arr[cur_state];
-        cur_state = ret[i];
+    // backtrace
+    for (int t = num_observation - 2; t >= 0; --t) {
+        hidden_states[t] = prev_state[(t + 1) * num_hiddenstate + hidden_states[t + 1]];
     }
 
     delete[] viterbi;
