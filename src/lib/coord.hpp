@@ -19,16 +19,14 @@ const std::vector<std::pair<std::size_t, std::size_t>> calculate_coord(const Bia
     std::vector<std::size_t> possible_start_coords;
     std::vector<std::size_t> possible_end_coords;
 
-    for (std::size_t i = 0; i < length; ++i) {
-        if (i == 0 && states[i] == BiasState::UpstreamBias) {
-            possible_start_coords.push_back(i);
-        } else if (states[i] == BiasState::UpstreamBias && (states[i - 1] == BiasState::DownstreamBias || states[i - 1] == BiasState::NoBias)) {
+    for (std::size_t i = 1; i < length; ++i) {
+        if (states[i] == BiasState::UpstreamBias && (states[i - 1] == BiasState::DownstreamBias || states[i - 1] == BiasState::NoBias)) {
             possible_start_coords.push_back(i);
         }
+    }
 
-        if (i == length - 1 && states[i] == BiasState::DownstreamBias) {
-            possible_end_coords.push_back(i);
-        } else if (states[i] == BiasState::DownstreamBias && (states[i + 1] == BiasState::UpstreamBias || states[i + 1] == BiasState::NoBias)) {
+    for (std::size_t i = 1; i < length-1; ++i) {
+        if (states[i] == BiasState::DownstreamBias && (states[i + 1] == BiasState::UpstreamBias || states[i + 1] == BiasState::NoBias)) {
             possible_end_coords.push_back(i);
         }
     }
@@ -42,8 +40,6 @@ const std::vector<std::pair<std::size_t, std::size_t>> calculate_coord(const Bia
 
     std::size_t curr_end = 0;
     std::size_t next_end = 1;
-
-    std::size_t prev_end = 0;
 
     while (possible_start_coords[curr_start] > possible_end_coords[curr_end] && curr_end < possible_end_coords.size() - 1 && next_end < possible_end_coords.size() - 1) {
         ++curr_end;
@@ -60,18 +56,13 @@ const std::vector<std::pair<std::size_t, std::size_t>> calculate_coord(const Bia
             ++next_end;
         }
 
-        coords.emplace_back(possible_start_coords[curr_start], possible_end_coords[curr_end] + 1);
+        coords.emplace_back(possible_start_coords[curr_start], possible_end_coords[curr_end]);
 
         curr_start = next_start;
         ++next_start;
 
-        prev_end = curr_end;
         curr_end = next_end;
         ++next_end;
-    }
-
-    if (possible_start_coords[curr_start] < possible_end_coords[curr_end] && possible_start_coords[curr_start] > possible_end_coords[prev_end]) {
-        coords.emplace_back(possible_start_coords[curr_start], possible_end_coords[curr_end] + 1);
     }
 
     return coords;

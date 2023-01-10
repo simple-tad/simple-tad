@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename, const std::size_t& bin_size, const std::size_t& bin1_min, const std::size_t& bin1_max, const std::size_t& bin2_min, const std::size_t& bin2_max) {
+const std::tuple<double*, std::size_t> read_hi_c_data(const std::string& filename, const std::size_t& bin_size, const std::size_t& bin1_min, const std::size_t& bin1_max, const std::size_t& bin2_min, const std::size_t& bin2_max) {
     std::fstream file;
     file.open(filename, std::ios::in);
 
@@ -16,7 +16,7 @@ const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename
 
     std::size_t edge_size = (std::max(bin1_max, bin2_max) - std::min(bin1_min, bin2_min)) / bin_size + 1;
 
-    float* data = new float[edge_size * edge_size]();
+    double* data = new double[edge_size * edge_size]();
     std::string line;
 
     // skip header
@@ -27,7 +27,7 @@ const std::tuple<float*, std::size_t> read_hi_c_data(const std::string& filename
         std::string chr;
         std::size_t bin1;
         std::size_t bin2;
-        float rescaled_intensity;
+        double rescaled_intensity;
 
         std::getline(ss, chr, ',');
         ss >> bin1;

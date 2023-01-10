@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <iostream>
 
-float* calculate_di_SCALAR(const float* contact_matrix, const std::size_t& edge_size, const std::size_t& range) {
-    float* di = new float[edge_size]();
+double* calculate_di_SCALAR(const double* contact_matrix, const std::size_t& edge_size, const std::size_t& range) {
+    double* di = new double[edge_size]();
 
     for (std::size_t locus_index = 0; locus_index < edge_size; ++locus_index) {
-        float A;
-        float B;
+        double A;
+        double B;
 
         if (locus_index < range) {
             // edge case
@@ -24,7 +24,7 @@ float* calculate_di_SCALAR(const float* contact_matrix, const std::size_t& edge_
             B = std::accumulate(contact_matrix + locus_index * edge_size + locus_index + 1, contact_matrix + locus_index * edge_size + locus_index + range + 1, 0.0f);
         }
 
-        float E = (A + B) / 2;
+        double E = (A + B) / 2;
 
         if (A == 0 && B == 0) {
             di[locus_index] = 0;
@@ -42,29 +42,29 @@ float* calculate_di_SCALAR(const float* contact_matrix, const std::size_t& edge_
 static void BM_calculate_di_SCALAR(benchmark::State& state) {
     std::size_t edge_size = state.range(0);
 
-    std::vector<float> data(edge_size * edge_size, 0);
-    // fill random positive floats
-    std::generate(data.begin(), data.end(), []() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    std::vector<double> data(edge_size * edge_size, 0);
+    // fill random positive doubles
+    std::generate(data.begin(), data.end(), []() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); });
 
     for (auto _ : state) {
         calculate_di_SCALAR(data.data(), edge_size, 2);
     }
 
-    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(float) / 8, benchmark::Counter::kIsRate);
+    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(double) / 8, benchmark::Counter::kIsRate);
 }
 
 static void BM_calculate_di_AVX2(benchmark::State& state) {
     std::size_t edge_size = state.range(0);
 
-    std::vector<float> data(edge_size * edge_size, 0);
-    // fill random positive floats
-    std::generate(data.begin(), data.end(), []() { return static_cast<float>(rand()) / static_cast<float>(RAND_MAX); });
+    std::vector<double> data(edge_size * edge_size, 0);
+    // fill random positive doubles
+    std::generate(data.begin(), data.end(), []() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); });
 
     for (auto _ : state) {
         calculate_di_AVX2(data.data(), edge_size, 40);
     }
 
-    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(float) / 8, benchmark::Counter::kIsRate);
+    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(double) / 8, benchmark::Counter::kIsRate);
 }
 
 BENCHMARK(BM_calculate_di_SCALAR)->Arg(33957);

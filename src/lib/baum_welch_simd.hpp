@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <tuple>
+#include <immintrin.h>
 
 double inline log_add(double x, double y) {
     if (x == -std::numeric_limits<double>::infinity()) {
@@ -30,6 +31,27 @@ double inline log_sum(double const* arr, std::size_t n) {
     return max + std::log(acc);
 }
 
+__m256d inline log_sum_AVX(__m256d const* arr, std::size_t n) {
+    // double max = *std::max_element(arr, arr + n);
+    __m256d max_AVX = _mm256_set1_pd(-std::numeric_limits<double>::infinity());
+
+    // if (max == std::numeric_limits<double>::infinity()) {
+    //     return max;
+    // }
+    max_AVX = _mm256_max_pd(arr[0], _mm256_max_pd(arr[1], arr[2]));
+
+    // double acc = 0;
+    __m256d acc_AVX = _mm256_set1_pd(0);
+
+    for (std::size_t i = 0; i < n; ++i) {
+        // acc += std::exp(arr[i] - max);
+        acc_AVX = _mm256_add_pd(acc_AVX, _mm256_exp_pd(_mm256_sub_pd(arr[i], max_AVX)));
+    }
+
+    // return max + std::log(acc);
+    return _mm256_add_pd(max_AVX, _mm256_log_pd(acc_AVX));
+}
+
 const std::tuple<const double, const double*> forward(
     const int* observations,
     const std::size_t num_observations,
@@ -46,14 +68,37 @@ const std::tuple<const double, const double*> forward(
 
     // compute the alpha matrix
     for (std::size_t t = 1; t < num_observations; ++t) {
-        // now is observation t, and t is from 1 because we skip init observation
-        for (std::size_t curr_state = 0; curr_state < num_states; ++curr_state) {
-            double* buf = new double[num_states];
+        if (num_states == 3) {
+            double* buf = new (std::align_val_t(32)) double[12]; // 3 * 4
+            __m256d buf_AVX;
             for (std::size_t prev_state = 0; prev_state < num_states; ++prev_state) {
-                buf[prev_state] = alpha[prev_state * num_observations + t - 1] + transition[prev_state * num_states + curr_state];
+                __m256d prev_alpha_AVX = _mm256_set1_pd(alpha[prev_state * num_observations + t - 1]);
+                __m256d trans_AVX = _mm256_load_pd(transition + prev_state * num_states);
+                buf_AVX = _mm256_add_pd(prev_alpha_AVX, trans_AVX);
+                _mm256_store_pd(buf + prev_state * 4, buf_AVX);
             }
-            alpha[curr_state * num_observations + t] = log_sum(buf, num_states) + emission[curr_state * num_emissions + observations[t]];
+            auto swap = [&buf](auto const& pos1, auto const& pos2) {
+                auto tmp = buf[pos2];
+                buf[pos2] = buf[pos1];
+                buf[pos1] = tmp;
+            };
+            swap(1, 4); swap(2, 8); swap(6, 9);
+            alpha[t] = log_sum(buf, num_states) + emission[observations[t]];
+            alpha[1 * num_observations + t] = log_sum(buf + 4, num_states) + emission[1 * num_emissions + observations[t]];
+            alpha[2 * num_observations + t] = log_sum(buf + 8, num_states) + emission[2 * num_emissions + observations[t]];
             delete[] buf;
+        }
+
+        else {
+            // now is observation t, and t is from 1 because we skip init observation
+            for (std::size_t curr_state = 0; curr_state < num_states; ++curr_state) {
+                double* buf = new double[num_states];
+                for (std::size_t prev_state = 0; prev_state < num_states; ++prev_state) {
+                    buf[prev_state] = alpha[prev_state * num_observations + t - 1] + transition[prev_state * num_states + curr_state];
+                }
+                alpha[curr_state * num_observations + t] = log_sum(buf, num_states) + emission[curr_state * num_emissions + observations[t]];
+                delete[] buf;
+            }
         }
     }
 
@@ -169,17 +214,17 @@ void baum_welch(
     const double tolerance = 1e-7,
     const std::size_t max_iters = 1000) {
     // transform initial to log space
-    double* log_initial = new double[num_states];
+    double* log_initial = new (std::align_val_t(32)) double[num_states];
     for (std::size_t i = 0; i < num_states; ++i) {
         log_initial[i] = std::log(initial[i]);
     }
 
     // transform transition matrix and emission matrix to log space
-    double* log_transition = new double[num_states * num_states];
+    double* log_transition = new (std::align_val_t(32)) double[num_states * num_states];
     for (std::size_t i = 0; i < num_states * num_states; ++i) {
         log_transition[i] = std::log(transition[i]);
     }
-    double* log_emission = new double[num_states * num_emissions];
+    double* log_emission = new (std::align_val_t(32)) double[num_states * num_emissions];
     for (std::size_t i = 0; i < num_states * num_emissions; ++i) {
         log_emission[i] = std::log(emission[i]);
     }
