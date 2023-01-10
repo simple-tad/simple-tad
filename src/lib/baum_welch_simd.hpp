@@ -295,9 +295,6 @@ namespace vectorized {
             // check if the max iteration is reached
             if (iter >= max_iters) {
                 std::cout << "Max iteration reached." << std::endl;
-
-                delete[] alpha;
-                delete[] beta;
                 break;
             }
 

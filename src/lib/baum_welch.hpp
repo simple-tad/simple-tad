@@ -245,8 +245,8 @@ void baum_welch(
         if (iter >= max_iters) {
             std::cout << "Max iteration reached." << std::endl;
 
-            delete[] alpha;
-            delete[] beta;
+            // delete[] alpha;
+            // delete[] beta;
             break;
         }
 
