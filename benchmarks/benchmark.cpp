@@ -69,13 +69,13 @@ static void BM_calculate_di_AVX2(benchmark::State& state) {
     state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(double) / 8, benchmark::Counter::kIsRate);
 }
 
-static void BM_baum_welch_simd(banchmark::State& state) {
+static void BM_baum_welch_simd(benchmark::State& state) {
     std::size_t edge_size = state.range(0);
 
-    std::vector<double> data(edge_size * edge_size, 0);
+    std::vector<int> data(edge_size * edge_size, 0);
     // fill random 0, 1, 2
-    srand(1000);
-    std::generate(data.begin(), data.end(), []() { return static_cast<int>(rand()) % 3; });
+    srand(0);
+    std::generate(data.begin(), data.end(), []() { return static_cast<int>((rand()) % 3); });
 
     double* initial = new double[3] { 0.4, 0.3, 0.3 };
     double* transition = new double[3 * 3] {
@@ -90,17 +90,19 @@ static void BM_baum_welch_simd(banchmark::State& state) {
     };
 
     for (auto _ : state) {
-        vectorized::baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3);
+        vectorized::baum_welch(data.data(), edge_size, initial, transition, emission, 3, 3);
     }
+
+    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(double) / 8, benchmark::Counter::kIsRate);
 }
 
-static void BM_baum_welch(banchmark::State& state) {
+static void BM_baum_welch(benchmark::State& state) {
     std::size_t edge_size = state.range(0);
 
-    std::vector<double> data(edge_size * edge_size, 0);
+    std::vector<int> data(edge_size * edge_size, 0);
     // fill random 0, 1, 2
-    srand(1000);
-    std::generate(data.begin(), data.end(), []() { return static_cast<int>(rand()) % 3; });
+    srand(0);
+    std::generate(data.begin(), data.end(), []() { return static_cast<int>((rand()) % 3); });
 
     double* initial = new double[3] { 0.4, 0.3, 0.3 };
     double* transition = new double[3 * 3] {
@@ -115,11 +117,15 @@ static void BM_baum_welch(banchmark::State& state) {
     };
 
     for (auto _ : state) {
-        baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3);
+        baum_welch(data.data(), edge_size, initial, transition, emission, 3, 3);
     }
+
+    state.counters["Throughput"] = benchmark::Counter(state.iterations() * edge_size * edge_size * sizeof(double) / 8, benchmark::Counter::kIsRate);
 }
 
 BENCHMARK(BM_calculate_di_SCALAR)->Arg(33957);
 BENCHMARK(BM_calculate_di_AVX2)->Arg(33957);
+BENCHMARK(BM_baum_welch)->Arg(33957);
+BENCHMARK(BM_baum_welch_simd)->Arg(33957);
 
 BENCHMARK_MAIN();
