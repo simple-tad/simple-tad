@@ -93,6 +93,7 @@ const double* backward(
                 buf[curr_state] = beta[curr_state * num_observations + t + 1] + transition[prev_state * num_states + curr_state] + emission[curr_state * num_emissions + observations[t + 1]];
             }
             beta[prev_state * num_observations + t] = log_sum(buf, num_states);
+            delete[] buf;
         }
 
         if (t == 0) {
@@ -245,8 +246,8 @@ void baum_welch(
         if (iter >= max_iters) {
             std::cout << "Max iteration reached." << std::endl;
 
-            delete[] alpha;
-            delete[] beta;
+            // delete[] alpha;
+            // delete[] beta;
             break;
         }
 

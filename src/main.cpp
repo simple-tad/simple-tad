@@ -1,4 +1,4 @@
-#include "lib/baum_welch.hpp"
+#include "lib/baum_welch_simd.hpp"
 #include "lib/coord.hpp"
 #include "lib/di.hpp"
 #include "lib/viterbi.hpp"
@@ -47,7 +47,7 @@ int main() {
 
     auto start_em = std::chrono::high_resolution_clock::now();
 
-    baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3); // side effect: update initial, transition, emission
+    vectorized::baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3); // side effect: update initial, transition, emission
     auto end_em = std::chrono::high_resolution_clock::now();
 
     std::cout << "Estimated initial probability:" << std::endl;
