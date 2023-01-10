@@ -1,4 +1,4 @@
-#include "lib/baum_welch_gaussian.hpp"
+#include "lib/baum_welch_simd.hpp"
 #include "lib/coord.hpp"
 #include "lib/di.hpp"
 #include "lib/viterbi.hpp"
@@ -37,7 +37,7 @@ int main() {
         0.1, 0.6, 0.3,
         0.2, 0.3, 0.5
     };
-    float* emission = new float[3 * 3] {
+    double* emission = new double[3 * 3] {
         0.7, 0.2, 0.1,
         0.1, 0.6, 0.3,
         0.2, 0.1, 0.7
@@ -47,7 +47,7 @@ int main() {
 
     auto start_em = std::chrono::high_resolution_clock::now();
 
-    baum_welch(di, edge_size, initial, transition, emission, 3, 2); // side effect: update initial, transition, emission
+    baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3); // side effect: update initial, transition, emission
     auto end_em = std::chrono::high_resolution_clock::now();
 
     std::cout << "Estimated initial probability:" << std::endl;
@@ -66,8 +66,8 @@ int main() {
 
     std::cout << "Estimated emission matrix:" << std::endl;
     for (std::size_t i = 0; i < 3; ++i) {
-        for (std::size_t j = 0; j < 2; ++j) {
-            std::cout << std::setiosflags(std::ios::fixed) << emission[i * 2 + j] << " ";
+        for (std::size_t j = 0; j < 3; ++j) {
+            std::cout << std::setiosflags(std::ios::fixed) << emission[i * 3 + j] << " ";
         }
         std::cout << std::endl;
     }
