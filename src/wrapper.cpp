@@ -57,7 +57,7 @@ PYBIND11_MODULE(simple_tad, m) {
                 0.1, 0.1, 0.8
             };
 
-            baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3, tolerance, max_iters); // side effect: update initial, transition, emission
+            vectorized::baum_welch(di_discrete, edge_size, initial, transition, emission, 3, 3, tolerance, max_iters); // side effect: update initial, transition, emission
 
             std::cout << "Estimated initial probability:" << std::endl;
             for (std::size_t i = 0; i < 3; ++i) {
